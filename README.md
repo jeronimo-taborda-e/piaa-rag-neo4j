@@ -117,7 +117,7 @@ No uses `docker compose down -v`: la opción `-v` borra el volumen y todos los d
 - Las consultas usan parámetros (`$codigo`), nunca texto concatenado.
 - Las versiones de un PIAA no se borran: pasan a estado `HISTORICO`.
 - `.env` y `backups/` nunca se suben al repositorio.
-- Se trabaja en ramas (`feat/...`, `fix/...`) y se integra a `main` por pull request.
+- Se trabaja en ramas (`feat/...`, `fix/...`) y se integra a `master` por pull request.
 
 ## Compartir una copia completa de la base
 
@@ -127,13 +127,13 @@ Para pasar datos pesados (por ejemplo, con embeddings) sin regenerarlos, con Neo
 # Exportar
 docker compose stop
 docker run --rm -v piaa-rag-neo4j_neo4j_piaa_data:/data -v "$(pwd)/backups":/backups \
-  neo4j:5-community neo4j-admin database dump neo4j --to-path=/backups
+  neo4j:5.26-community neo4j-admin database dump neo4j --to-path=/backups
 docker compose start
 
 # Importar (reemplaza la base local)
 docker compose stop
 docker run --rm -v piaa-rag-neo4j_neo4j_piaa_data:/data -v "$(pwd)/backups":/backups \
-  neo4j:5-community neo4j-admin database load neo4j --from-path=/backups --overwrite-destination=true
+  neo4j:5.26-community neo4j-admin database load neo4j --from-path=/backups --overwrite-destination=true
 docker compose start
 ```
 

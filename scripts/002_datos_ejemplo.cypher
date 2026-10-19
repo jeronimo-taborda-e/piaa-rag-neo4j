@@ -1,3 +1,8 @@
+// =====================================================
+// 002_datos_ejemplo.cypher — Datos de prueba
+// Ejecutar DESPUÉS de 001_esquema.cypher. Se puede repetir sin problema.
+// =====================================================
+
 // ---------- Estructura académica ----------
 MERGE (dep:Departamento {codigo: "DEP-SIS"})  SET dep.nombre = "Departamento de Sistemas"
 MERGE (fac:Facultad {codigo: "FING"})         SET fac.nombre = "Facultad de Ingeniería"

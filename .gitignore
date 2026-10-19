@@ -1,1 +1,6 @@
 .env
+
+# Dumps de la base (se comparten por Drive/OneDrive)
+backups/*
+!backups/.gitkeep
+*.dump
