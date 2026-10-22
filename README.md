@@ -20,21 +20,25 @@ El grafo guarda la estructura académica (facultades, programas, actividades), l
 
 ```
 piaa-rag-neo4j/
-├── docker-compose.yml          # Neo4j 5 Community
-├── .env.example                # Variables de entorno (copiar a .env)
+├── docker-compose.yml               # Neo4j 5.26 Community
+├── .env.example                     # Variables de entorno (copiar a .env)
 ├── .gitignore
-├── import/                     # Archivos CSV para LOAD CSV
-├── backups/                    # Dumps de la base (no se suben a Git)
-└── scripts/
-    ├── 001_esquema.cypher      # Constraints e índices
-    └── 002_datos_ejemplo.cypher # Datos de prueba
+├── requirements.txt                 # Driver neo4j, pydantic, python-dotenv
+├── init.py                          # Inicialización: ejecuta los scripts en orden
+├── import/                          # Archivos CSV para LOAD CSV
+├── backups/                         # Dumps de la base (no se suben a Git)
+├── scripts/
+│   ├── 001_schema.cypher            # Constraints e índices (unicidad, compuestos, fulltext, vectoriales)
+│   └── 002_example_data.cypher      # Datos de ejemplo de todas las etiquetas
+└── validation/
+    ├── models.py                    # Validación del esquema con Pydantic
 ```
 
 ## Requisitos
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (en Windows, con WSL2)
 - Git
-- Python 3.12 y [uv](https://docs.astral.sh/uv/) (para generar embeddings)
+- Python 3.10 o superior
 
 ## Puesta en marcha
 
@@ -58,11 +62,19 @@ piaa-rag-neo4j/
    docker compose logs neo4j   # esperar la línea "Started."
    ```
 
-4. Crear el esquema y cargar los datos de ejemplo:
+4. Instalar las dependencias de Python y crear el esquema con los datos de ejemplo:
 
    ```bash
-   docker exec -i neo4j-piaa cypher-shell -u neo4j -p <tu_clave> < scripts/001_esquema.cypher
-   docker exec -i neo4j-piaa cypher-shell -u neo4j -p <tu_clave> < scripts/002_datos_ejemplo.cypher
+   pip install -r requirements.txt
+   python init.py                 # 001_schema + 002_example_data
+   python init.py --solo-esquema  # solo constraints e índices
+   ```
+
+   `init.py` muestra al final las constraints, el estado de cada índice y los nodos por etiqueta. Alternativa sin Python:
+
+   ```bash
+   docker exec -i neo4j-piaa cypher-shell -u neo4j -p <tu_clave> < scripts/001_schema.cypher
+   docker exec -i neo4j-piaa cypher-shell -u neo4j -p <tu_clave> < scripts/002_example_data.cypher
    ```
 
 5. Abrir Neo4j Browser en <http://localhost:7474> y conectarse con `bolt://localhost:7687`, usuario `neo4j` y la contraseña del `.env`.
@@ -85,6 +97,22 @@ SHOW INDEXES;
 CALL db.schema.visualization();
 ```
 
+## Validación del esquema
+
+Neo4j Community solo aplica restricciones de unicidad. La validación de campos obligatorios, tipos, valores permitidos y dimensión de los vectores (equivalente al `$jsonSchema` de MongoDB) está en `validation/models.py`, y todo dato pasa por esos modelos antes de escribirse en Neo4j.
+
+| Plantilla (MongoDB) | Este proyecto (Neo4j) |
+| --- | --- |
+| documentos | `PIAAIn` + `VersionIn` |
+| chunks | `FragmentoIn` (384 valores MiniLM, `estrategia_chunking` obligatorio) |
+| imagenes | `ImagenIn` (512 valores CLIP) |
+
+Para comprobarla:
+
+```bash
+python -m validation.check_models
+```
+
 ## Uso diario
 
 | Acción | Comando |
@@ -103,6 +131,7 @@ No uses `docker compose down -v`: la opción `-v` borra el volumen y todos los d
 (PIAA)-[:PROGRAMA_DE]->(ActividadAcademica)
 (PIAA)-[:TIENE_VERSION]->(Version)    (PIAA)-[:VIGENTE]->(Version)
 (Version)-[:TIENE_SECCION]->(Seccion)-[:TIENE_FRAGMENTO]->(Fragmento)
+(Seccion)-[:TIENE_IMAGEN]->(Imagen)
 (Version)-[:TIENE_HALLAZGO]->(Hallazgo)-[:DE_TIPO]->(Antipatron)-[:INCUMPLE]->(Regla)
 (Hallazgo)-[:EN]->(Fragmento)
 (Persona)-[:ENVIA]->(Solicitud)-[:PROPONE]->(Version)
@@ -112,7 +141,7 @@ No uses `docker compose down -v`: la opción `-v` borra el volumen y todos los d
 
 ## Reglas del equipo
 
-- **Todo cambio de esquema va en un script nuevo** (`003_...cypher`, `004_...cypher`) y se sube a Git. Nunca se modifica la base solo a mano.
+- **Todo cambio de esquema va en un script nuevo** (`003_...cypher`, `004_...cypher`, en `scripts/`) y se sube a Git. Nunca se modifica la base solo a mano.
 - Los scripts usan `MERGE` e `IF NOT EXISTS`, así que se pueden ejecutar varias veces sin duplicar datos.
 - Las consultas usan parámetros (`$codigo`), nunca texto concatenado.
 - Las versiones de un PIAA no se borran: pasan a estado `HISTORICO`.

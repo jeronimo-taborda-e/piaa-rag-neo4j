@@ -1,5 +1,5 @@
 // =====================================================
-// 001_esquema.cypher — Constraints e índices (Neo4j 5 Community)
+// 001_schema.cypher — Constraints e índices (Neo4j 5 Community)
 // Ejecutar ANTES de cargar datos. Se puede repetir sin problema.
 // =====================================================
 
@@ -46,7 +46,19 @@ CREATE INDEX solicitud_estado IF NOT EXISTS FOR (n:Solicitud) ON (n.estado);
 CREATE INDEX fragmento_chunking IF NOT EXISTS FOR (n:Fragmento) ON (n.estrategia_chunking, n.idioma);
 CREATE INDEX consulta_fecha IF NOT EXISTS FOR (n:Consulta) ON (n.fecha);
 
+// ---------- Índices compuestos (obligatorios en la plantilla) ----------
+// Equivale a idx_fecha_idioma de "documentos": cada Version es un documento PIAA
+CREATE INDEX version_fecha_idioma IF NOT EXISTS FOR (n:Version) ON (n.fecha, n.idioma);
+// Fecha e idioma de los chunks, para filtrar junto con la similitud
+CREATE INDEX fragmento_fecha_idioma IF NOT EXISTS FOR (n:Fragmento) ON (n.fecha_ingesta, n.idioma);
+
 // ---------- Índice de texto completo (español) ----------
+// Equivale a idx_texto de "documentos": texto completo de cada sección
+CREATE FULLTEXT INDEX seccion_texto IF NOT EXISTS
+FOR (n:Seccion) ON EACH [n.texto, n.titulo_original]
+OPTIONS { indexConfig: { `fulltext.analyzer`: 'spanish' } };
+
+// Texto completo de los fragmentos (unidad de búsqueda del RAG)
 CREATE FULLTEXT INDEX fragmento_texto IF NOT EXISTS
 FOR (n:Fragmento) ON EACH [n.texto]
 OPTIONS { indexConfig: { `fulltext.analyzer`: 'spanish' } };

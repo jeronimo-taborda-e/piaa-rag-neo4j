@@ -4,3 +4,8 @@
 backups/*
 !backups/.gitkeep
 *.dump
+
+# Python
+__pycache__/
+*.pyc
+.venv/
